@@ -1,0 +1,95 @@
+.data
+num: .word 12,10,0  #memory holding a, b and result
+result_s: .asciiz "The result is: "
+error_s: .asciiz "Multiplication Error"
+
+.text
+j main
+#$a0 contains pointer to array (num in this case)
+#$v0 is used to return result 0 or 1
+
+mult:
+lw $s1,0($a0)  #s1 is constant a
+lw $s2,4($a0)  #s2 is constant b
+
+add $t1,$zero,$s1  #t1 is division, from a
+add $t2,$zero,$s2  #t2 is multipication, from b
+li $t4,0  #t4 is the number of negative element
+
+judge_sign:
+bltz $t1,transfer_a  #if a or b is negative number, transfer it to positive
+bltz $t2,transfer_b
+j range  #all the elements are positive number (after transfer)
+
+transfer_a:
+addi $t4,$t4,1  #count the number of negative element
+not $t1,$t1  #flip
+addi $t1,$t1,1  #add 1
+j judge_sign  #back to judge_sign
+
+transfer_b:
+addi $t4,$t4,1
+not $t2,$t2
+addi $t2,$t2,1
+j judge_sign
+
+range:
+ble $t1,0xFFFF,loop  #set the range
+j error
+ble $t2,0xFFFF,loop  #set the range
+j error
+
+loop:
+sll $t3,$t1,31  
+srl $t3,$t3,31  #t3 is the end bits of $t1
+beq $t3,1,odd  #r is odd
+j shift
+
+odd:
+add $t0,$t0,$t2  #r is odd, add to result $t0
+
+shift:
+srl $t1,$t1,1  #diverse $t1
+sll $t2,$t2,1  #multiply $t2
+bnez $t1,loop  #when $t1 == $zero, stop the loop
+
+ok:
+addi $v0,$zero,1  #return 1
+jr $ra
+
+error:
+addi $v0,$zero,0  #return 0
+jr $ra
+
+main:
+la $a0,num  #put address of array in $a0
+
+next:
+jal mult  #call mult function
+beq $v0,0,print_error  #if return is 0, jump to print_error
+
+print_result:
+bne $t4,1,result  #both a and b are positive or negative number, jump to result
+not $t0,$t0  #a or b is negative number, then flip
+addi $t0,$t0,1  #add 1
+
+result:
+add $s0,$zero,$t0  #set $s0 as $t0
+sw $s0,8($a0)  #s0 is result
+
+print:
+la $a0,result_s  #print messgae
+addi $v0,$zero,4
+syscall
+add $a0,$zero,$s0  #print result
+addi $v0,$zero,1
+syscall
+j end
+
+print_error:
+la $a0,error_s  #print error message
+addi $v0,$zero,4
+syscall
+
+end:
+nop
